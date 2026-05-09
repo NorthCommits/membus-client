@@ -21,11 +21,25 @@ def _make_bus(server_url: str, api_key: str) -> MemBus:
     return MemBus(server_url=url, api_key=key)
 
 
+def _is_first_run() -> bool:
+    """Returns True if this is the first time membus CLI has been run."""
+    import pathlib
+    flag = pathlib.Path.home() / ".membus" / ".welcomed"
+    if not flag.exists():
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+        return True
+    return False
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
     """MemBus — scoped memory for LLM agents."""
     if ctx.invoked_subcommand is None:
+        from membus.guide import show_guide
+        show_guide()
+    elif _is_first_run():
         from membus.guide import show_guide
         show_guide()
 

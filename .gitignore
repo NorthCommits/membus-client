@@ -25,6 +25,10 @@ build/
 .uv/
 uv.lock
 
+# Misc
+pytest-cache-files-*/
+dist/
+
 # Testing
 .pytest_cache/
 .coverage
