@@ -5,8 +5,7 @@ Usage:
     from membus import MemBus, Scope
 
     bus = MemBus(
-        server_url="https://your-membus.onrender.com",
-        api_key="your-secret-key",
+        adapter="memory",           # "memory" | "redis" | "supabase" | "chroma"
         default_scope_ids={
             "user": "user_123",
             "session": "sess_456",
@@ -39,8 +38,12 @@ class MemBus:
 
     Parameters
     ----------
+    adapter : str
+        Which storage backend to use for all operations.
+        Options: "memory" (default), "redis", "supabase", "chroma".
+        The adapter must be configured on the server side.
     server_url : str
-        Base URL of the deployed MemBus server, e.g. https://your-membus.onrender.com
+        Base URL of the deployed MemBus server.
     api_key : str, optional
         API key for the server (must match MEMBUS_API_KEY on the server).
     default_scope_ids : dict, optional
@@ -55,19 +58,19 @@ class MemBus:
 
     def __init__(
         self,
+        adapter: str = "memory",
         server_url: str = DEFAULT_SERVER_URL,
         api_key: str = DEFAULT_API_KEY,
         default_scope_ids: Optional[dict[str, str]] = None,
         timeout: float = 10.0,
-        expected_adapter: Optional[str] = None,
     ):
+        self._adapter = adapter
         self._base = server_url.rstrip("/")
         self._headers = {"Content-Type": "application/json"}
         if api_key:
             self._headers["x-api-key"] = api_key
         self._scope_ids: dict[str, str] = default_scope_ids or {}
         self._timeout = timeout
-        self._expected_adapter = expected_adapter
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -144,6 +147,7 @@ class MemBus:
             "scope_id": sid,
             "namespace": namespace,
             "ttl": ttl,
+            "adapter": self._adapter,
         }
         result = self._post("/memory/write", payload)
         return result.get("success", False)
@@ -168,6 +172,7 @@ class MemBus:
             "scope": scope_str,
             "scope_id": sid,
             "namespace": namespace,
+            "adapter": self._adapter,
         }
         result = self._post("/memory/read", payload)
         if not result.get("found"):
@@ -198,6 +203,7 @@ class MemBus:
             "scope_id": sid,
             "operation": operation,
             "namespace": namespace,
+            "adapter": self._adapter,
         }
         return self._post("/memory/manage", payload)
 
@@ -216,25 +222,19 @@ class MemBus:
             "scope": scope_str,
             "scope_id": sid,
             "namespace": namespace,
+            "adapter": self._adapter,
         }
         result = self._post("/memory/flush", payload)
         return result.get("deleted", 0)
 
     def stats(self) -> dict:
         """
-        Return server-level memory stats (total keys, breakdown by scope, adapter name).
+        Return memory stats for the current adapter (total keys, breakdown by scope).
         """
-        return self._get("/memory/stats")
+        return self._get("/memory/stats", params={"adapter": self._adapter})
 
     def health(self) -> dict:
-        """Check server health. Warns if server adapter doesn't match expected_adapter."""
-        result = self._get("/health")
-        if self._expected_adapter and result.get("adapter") != self._expected_adapter:
-            import warnings
-            warnings.warn(
-                f"[membus] Adapter mismatch: expected '{self._expected_adapter}' "
-                f"but server is running '{result.get('adapter')}'. "
-                f"Set MEMBUS_ADAPTER={self._expected_adapter} on your server.",
-                stacklevel=2,
-            )
-        return result
+        """
+        Check server health. Returns status and list of available adapters.
+        """
+        return self._get("/health")

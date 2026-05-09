@@ -32,7 +32,7 @@ def show_guide():
     code = '''\
 from membus import MemBus, Scope
 
-bus = MemBus()                                    # connects to your server
+bus = MemBus(adapter="memory")                    # "memory" | "redis" | "supabase" | "chroma"
 
 bus.write("user_name", "Alice", scope=Scope.USER, scope_id="u1")
 name = bus.read("user_name",  scope=Scope.USER, scope_id="u1")  # -> "Alice"
@@ -56,15 +56,16 @@ bus.manage(scope=Scope.SESSION, operation="prune", scope_id="s1")'''
     adapters = Table(box=box.ROUNDED, border_style="magenta", show_header=True, header_style="bold magenta")
     adapters.add_column("Adapter",   style="bold white", width=12)
     adapters.add_column("Best for",  width=28)
-    adapters.add_column("Set on server")
-    adapters.add_row("memory",   "Dev & testing (zero infra)",    "[dim]MEMBUS_ADAPTER=memory[/dim]")
-    adapters.add_row("redis",    "Fast, session-friendly apps",   "[dim]MEMBUS_ADAPTER=redis[/dim]")
-    adapters.add_row("supabase", "Persistent, Postgres-backed",   "[dim]MEMBUS_ADAPTER=supabase[/dim]")
-    adapters.add_row("chroma",   "Semantic / vector memory",      "[dim]MEMBUS_ADAPTER=chroma[/dim]")
+    adapters.add_column("How to use")
+    adapters.add_row("memory",   "Dev & testing (zero infra)",    '[dim]MemBus(adapter="memory")[/dim]')
+    adapters.add_row("redis",    "Fast, session-friendly apps",   '[dim]MemBus(adapter="redis")[/dim]')
+    adapters.add_row("supabase", "Persistent, Postgres-backed",   '[dim]MemBus(adapter="supabase")[/dim]')
+    adapters.add_row("chroma",   "Semantic / vector memory",      '[dim]MemBus(adapter="chroma")[/dim]')
     console.print(adapters)
 
     console.print(
-        "\n  [dim]Set [bold]MEMBUS_ADAPTER[/bold] in your server's .env — no client code changes needed.[/dim]"
+        "\n  [dim]The MemBus server supports all adapters simultaneously — "
+        "you choose per client instance.[/dim]"
     )
 
     # -- Adapter config in code ------------------------------------------------
@@ -72,14 +73,17 @@ bus.manage(scope=Scope.SESSION, operation="prune", scope_id="s1")'''
     adapter_code = '''\
 from membus import MemBus, Scope
 
-# Default — uses whatever adapter the server is configured with
+# Default — uses fast in-memory storage (great for dev)
 bus = MemBus()
 
-# Explicitly tell MemBus which adapter the server should use
-bus = MemBus(expected_adapter="supabase")
+# Switch to a persistent adapter — no server changes needed
+redis_bus    = MemBus(adapter="redis")
+supabase_bus = MemBus(adapter="supabase")
+chroma_bus   = MemBus(adapter="chroma")
 
-# The client will warn you if the server is running a different adapter
-bus.health()  # -> {"status": "ok", "adapter": "memory"} -- mismatch warning'''
+# Each instance routes to its own backend independently
+redis_bus.write("session_data", {...}, scope=Scope.SESSION, scope_id="s1")
+chroma_bus.write("doc_embedding", [...], scope=Scope.USER, scope_id="u1")'''
     console.print(Syntax(adapter_code, "python", theme="monokai", padding=(1, 2)))
 
     # -- MCP -------------------------------------------------------------------
