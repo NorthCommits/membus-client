@@ -24,4 +24,4 @@ from membus.client import MemBus, MemBusError
 from membus.scopes import Scope
 
 __all__ = ["MemBus", "MemBusError", "Scope"]
-__version__ = "0.1.1"
+__version__ = "0.1.2"
